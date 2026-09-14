@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Плитка — стадии гипертонии</title>
+    <link rel="stylesheet" href="/static/styles/hypertension.css">
+</head>
+<body class="app-body grid-body">
+<main class="phone-shell grid-shell">
+    <section class="search-zone">
+        <form class="sbp-search" action="/stages" method="GET">
+            <input name="sbp" type="number" min="1" placeholder="Систолическое АД" value="{{ .SBPQuery }}" aria-label="Фильтр по систолическому АД">
+            <button type="submit" aria-label="Найти по систолическому АД"><span class="search-icon"></span></button>
+        </form>
+        {{ if .FilterError }}<p class="filter-error">{{ .FilterError }}</p>{{ end }}
+    </section>
+
+    <section class="stage-grid">
+        {{ range .Cards }}
+        <a class="stage-card" href="/feed/{{ .Service.ID }}" data-video-url="{{ .Service.VideoURL }}">
+            <img src="{{ .Service.ImageURL }}" alt="{{ .StageTitle }}">
+            <div class="stage-card-copy">
+                <div class="stage-card-head">
+                    <h2>{{ .StageTitle }}</h2>
+                    <span class="card-likes">♡ {{ .LikesCount }}</span>
+                </div>
+                <p>{{ .StageRange }}</p>
+            </div>
+        </a>
+        {{ else }}
+        <p class="empty-result">Для введенного САД карточка не найдена.</p>
+        {{ end }}
+    </section>
+
+    <nav class="bottom-nav" aria-label="Основная навигация">
+        <a href="/feed/">лента</a>
+        <a href="/draft">добавить</a>
+        <a class="active" href="/stages">плитка</a>
+    </nav>
+</main>
+</body>
+</html>

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Добавление — стадии гипертонии</title>
+    <link rel="stylesheet" href="/static/styles/hypertension.css">
+</head>
+<body class="app-body draft-body">
+<main class="phone-shell draft-shell">
+    <section class="draft-content">
+        <h1>Расчет и классификация<br>стадии АГ</h1>
+
+        <section class="draft-field media-field">
+            <label for="photo">Фото:</label>
+            <img class="draft-preview" src="{{ .Card.Service.ImageURL }}" alt="Фото черновика {{ .Card.StageTitle }}">
+            <input id="photo" type="file" accept="image/png,image/jpeg">
+            <small>Minio: {{ .Card.Service.ImageURL }}</small>
+        </section>
+
+        <section class="draft-field media-field">
+            <label for="video">Видео:</label>
+            <video class="draft-video-preview" muted controls preload="metadata" poster="{{ .Card.Service.ImageURL }}">
+                <source src="{{ .Card.Service.VideoURL }}" type="video/mp4">
+            </video>
+            <input id="video" type="file" accept="video/mp4">
+            <small>Minio: {{ .Card.Service.VideoURL }}</small>
+        </section>
+
+        <section class="draft-field text-field">
+            <label for="description">Описание:</label>
+            <textarea id="description" rows="2">{{ .Card.Service.Description }}</textarea>
+        </section>
+
+        <section class="draft-field pressure-field">
+            <label for="sbp">Систолическое АД (SBP):</label>
+            <div class="value-row">
+                <input id="sbp" type="number" value="{{ .Card.Service.SystolicBP }}" placeholder="мм рт. ст.">
+                <span>мм рт. ст.</span>
+            </div>
+        </section>
+
+        <section class="draft-field pressure-field">
+            <label for="dbp">Диастолическое АД (DBP):</label>
+            <div class="value-row">
+                <input id="dbp" type="number" value="{{ .Card.Service.DiastolicBP }}" placeholder="мм рт. ст.">
+                <span>мм рт. ст.</span>
+            </div>
+        </section>
+    </section>
+
+    <nav class="bottom-nav" aria-label="Основная навигация">
+        <a href="/feed/">лента</a>
+        <a class="active" href="/draft">добавить</a>
+        <a href="/stages">плитка</a>
+    </nav>
+</main>
+</body>
+</html>
