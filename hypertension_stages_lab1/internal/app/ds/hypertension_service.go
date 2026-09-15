@@ -11,8 +11,13 @@ const (
 type HypertensionService struct {
 	ID uint `gorm:"primaryKey"`
 
-	Title       string
+	Title string
+
+	// Короткое описание
 	Description string
+
+	// Полное описание для раскрытия
+	FullDescription string
 
 	SystolicBP  int
 	DiastolicBP int
@@ -22,15 +27,7 @@ type HypertensionService struct {
 	ImageURL string
 	VideoURL string
 
-	Likes []HypertensionLike
-}
-
-type HypertensionLike struct {
-	ID uint `gorm:"primaryKey"`
-
-	UserID int
-
-	HypertensionServiceID uint
+	Likes []HypertensionLike `gorm:"foreignKey:HypertensionServiceID"`
 }
 
 // --------------------
@@ -38,37 +35,51 @@ type HypertensionLike struct {
 // --------------------
 
 func HypertensionStageNumberBySBP(sbp int) int {
+
 	switch {
+
 	case sbp < 120:
-		return -2 // оптимальное
+		return -2
+
 	case sbp <= 129:
-		return -1 // нормальное
+		return -1
+
 	case sbp <= 139:
-		return 0 // высокое нормальное
+		return 0
+
 	case sbp <= 159:
-		return 1 // I стадия
+		return 1
+
 	case sbp <= 179:
-		return 2 // II стадия
+		return 2
+
 	default:
-		return 3 // III стадия
+		return 3
 	}
 }
 
 func HypertensionStageRomanTitleBySBP(sbp int) string {
+
 	switch HypertensionStageNumberBySBP(sbp) {
+
 	case 1:
 		return "I стадия"
+
 	case 2:
 		return "II стадия"
+
 	case 3:
 		return "III стадия"
+
 	default:
 		return "Вне диапазона"
 	}
 }
 
 func HypertensionStageTitleBySBP(sbp int) string {
+
 	switch HypertensionStageNumberBySBP(sbp) {
+
 	case -2:
 		return "Оптимальное давление"
 
@@ -90,7 +101,9 @@ func HypertensionStageTitleBySBP(sbp int) string {
 }
 
 func HypertensionStageRangeBySBP(sbp int) string {
+
 	switch {
+
 	case sbp < 120:
 		return "<120 мм рт. ст."
 

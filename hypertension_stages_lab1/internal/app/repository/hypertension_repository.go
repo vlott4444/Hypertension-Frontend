@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"errors"
 	"fmt"
 
 	"hypertensionstages/internal/app/ds"
@@ -18,11 +19,13 @@ func NewHypertensionRepository(db *gorm.DB) *HypertensionRepository {
 	}
 }
 
-// Получить все опубликованные карточки гипертонии
+// Получить все опубликованные карточки
 func (r *HypertensionRepository) PublishedHypertensionServices() ([]ds.HypertensionService, error) {
+
 	var services []ds.HypertensionService
 
 	err := r.db.
+		Preload("Likes").
 		Where("status = ?", ds.HypertensionPublished).
 		Find(&services).
 		Error
@@ -32,7 +35,9 @@ func (r *HypertensionRepository) PublishedHypertensionServices() ([]ds.Hypertens
 	}
 
 	if len(services) == 0 {
-		return nil, fmt.Errorf("опубликованные карточки стадий гипертонии не найдены")
+		return nil, fmt.Errorf(
+			"опубликованные карточки стадий гипертонии не найдены",
+		)
 	}
 
 	return services, nil
@@ -40,18 +45,28 @@ func (r *HypertensionRepository) PublishedHypertensionServices() ([]ds.Hypertens
 
 // Получить карточку по ID
 func (r *HypertensionRepository) HypertensionServiceByID(id int) (ds.HypertensionService, error) {
+
 	var service ds.HypertensionService
 
 	err := r.db.
-		Where("id = ? AND status = ?", id, ds.HypertensionPublished).
+		Preload("Likes").
+		Where(
+			"id = ? AND status = ?",
+			id,
+			ds.HypertensionPublished,
+		).
 		First(&service).
 		Error
 
-	if err != nil {
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return ds.HypertensionService{}, fmt.Errorf(
 			"опубликованная карточка стадии гипертонии с id=%d не найдена",
 			id,
 		)
+	}
+
+	if err != nil {
+		return ds.HypertensionService{}, err
 	}
 
 	return service, nil
@@ -59,24 +74,35 @@ func (r *HypertensionRepository) HypertensionServiceByID(id int) (ds.Hypertensio
 
 // Получить черновик
 func (r *HypertensionRepository) HypertensionDraftService() (ds.HypertensionService, error) {
+
 	var service ds.HypertensionService
 
 	err := r.db.
-		Where("status = ?", ds.HypertensionDraft).
+		Preload("Likes").
+		Where(
+			"status = ?",
+			ds.HypertensionDraft,
+		).
 		First(&service).
 		Error
 
-	if err != nil {
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return ds.HypertensionService{}, fmt.Errorf(
 			"черновик стадии гипертонии не найден",
 		)
+	}
+
+	if err != nil {
+		return ds.HypertensionService{}, err
 	}
 
 	return service, nil
 }
 
 // Следующая опубликованная карточка
-func (r *HypertensionRepository) NextPublishedHypertensionService(currentID int) (ds.HypertensionService, error) {
+func (r *HypertensionRepository) NextPublishedHypertensionService(
+	currentID int,
+) (ds.HypertensionService, error) {
 
 	services, err := r.PublishedHypertensionServices()
 
@@ -86,11 +112,11 @@ func (r *HypertensionRepository) NextPublishedHypertensionService(currentID int)
 
 	for index, service := range services {
 
-		if service.ID == currentID {
+		if int(service.ID) == currentID {
 
-			nextIndex := (index + 1) % len(services)
+			next := services[(index+1)%len(services)]
 
-			return services[nextIndex], nil
+			return next, nil
 		}
 	}
 
@@ -111,20 +137,49 @@ func (r *HypertensionRepository) FilterPublishedHypertensionBySBP(
 		return []ds.HypertensionService{}, nil
 	}
 
-	services, err := r.PublishedHypertensionServices()
+	min, max := hypertensionRange(stage)
+
+	var services []ds.HypertensionService
+
+	err := r.db.
+		Preload("Likes").
+		Where(
+			"status = ? AND systolic_bp BETWEEN ? AND ?",
+			ds.HypertensionPublished,
+			min,
+			max,
+		).
+		Find(&services).
+		Error
 
 	if err != nil {
 		return nil, err
 	}
 
-	result := make([]ds.HypertensionService, 0)
+	return services, nil
+}
 
-	for _, service := range services {
+// Диапазон давления для SQL
+func hypertensionRange(stage int) (int, int) {
 
-		if ds.HypertensionStageNumberBySBP(service.SystolicBP) == stage {
-			result = append(result, service)
-		}
+	switch stage {
+
+	case -2:
+		return 0, 119
+
+	case -1:
+		return 120, 129
+
+	case 0:
+		return 130, 139
+
+	case 1:
+		return 140, 159
+
+	case 2:
+		return 160, 179
+
+	default:
+		return 180, 300
 	}
-
-	return result, nil
 }
