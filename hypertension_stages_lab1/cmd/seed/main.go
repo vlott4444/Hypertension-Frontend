@@ -119,9 +119,114 @@ func main() {
 
 			Status: ds.HypertensionPublished,
 		},
+
+		{
+			Title: "Удаленная карточка II стадии",
+
+			Description: "Тестовая логически удаленная услуга",
+
+			FullDescription: "Эта запись нужна для демонстрации статуса удален и не должна отображаться в приложении.",
+
+			SystolicBP:  170,
+			DiastolicBP: 105,
+
+			ImageURL: "/resources/media/deleted_stage2.png",
+			VideoURL: "/resources/media/deleted_stage2.mp4",
+
+			Status: ds.HypertensionDeleted,
+		},
 	}
 
+	// Создаём карточки только если их ещё нет, чтобы повторный запуск seed
+	// не плодил дубликаты. Сохраняем реальные ID из БД для таблицы лайков.
+	servicesByTitle := make(map[string]ds.HypertensionService)
+
 	for _, service := range services {
-		db.Create(&service)
+		var stored ds.HypertensionService
+		result := db.Where("title = ?", service.Title).FirstOrCreate(&stored, service)
+		if result.Error != nil {
+			panic(result.Error)
+		}
+
+		servicesByTitle[stored.Title] = stored
 	}
+
+	// Пользователи для демонстрации m-m связи пользователь <-> услуга.
+	usernames := []string{
+		"elizabeth",
+		"anna",
+		"maxim",
+		"dmitry",
+		"sofia",
+		"alexey",
+	}
+
+	usersByUsername := make(map[string]ds.User)
+
+	for _, username := range usernames {
+		var user ds.User
+		result := db.Where("username = ?", username).FirstOrCreate(
+			&user,
+			ds.User{Username: username},
+		)
+		if result.Error != nil {
+			panic(result.Error)
+		}
+
+		usersByUsername[username] = user
+	}
+
+	// Набор лайков. Один пользователь лайкает конкретную карточку не более одного раза.
+	// Количество лайков на опубликованных карточках специально разное, чтобы это было
+	// хорошо видно и в приложении, и в Adminer/pgAdmin.
+	//likes := []struct {
+	//	Username     string
+	//	ServiceTitle string
+	//}{
+	//	{"elizabeth", "Оптимальное давление"},
+	//	{"anna", "Оптимальное давление"},
+	//	{"maxim", "Оптимальное давление"},
+	//
+	//	{"elizabeth", "Нормальное давление"},
+	//	{"anna", "Нормальное давление"},
+	//	{"sofia", "Нормальное давление"},
+	//	{"alexey", "Нормальное давление"},
+	//
+	//	{"maxim", "Высокое нормальное давление"},
+	//	{"dmitry", "Высокое нормальное давление"},
+	//
+	//	{"elizabeth", "I стадия гипертонии"},
+	//	{"anna", "I стадия гипертонии"},
+	//	{"maxim", "I стадия гипертонии"},
+	//	{"dmitry", "I стадия гипертонии"},
+	//	{"sofia", "I стадия гипертонии"},
+	//
+	//	{"anna", "II стадия гипертонии"},
+	//	{"alexey", "II стадия гипертонии"},
+	//	{"sofia", "II стадия гипертонии"},
+	//
+	//	{"elizabeth", "III стадия гипертонии"},
+	//	{"dmitry", "III стадия гипертонии"},
+	//	{"alexey", "III стадия гипертонии"},
+	//}
+	//
+	//for _, item := range likes {
+	//	user := usersByUsername[item.Username]
+	//	service := servicesByTitle[item.ServiceTitle]
+	//
+	//	like := ds.HypertensionLike{
+	//		UserID:                user.ID,
+	//		HypertensionServiceID: service.ID,
+	//	}
+	//
+	//	result := db.Where(
+	//		"user_id = ? AND hypertension_service_id = ?",
+	//		like.UserID,
+	//		like.HypertensionServiceID,
+	//	).FirstOrCreate(&like)
+	//
+	//	if result.Error != nil {
+	//		panic(result.Error)
+	//	}
+	//}
 }

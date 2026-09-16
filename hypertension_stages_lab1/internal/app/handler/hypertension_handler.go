@@ -9,7 +9,6 @@ import (
 	"hypertensionstages/internal/app/repository"
 
 	"github.com/gin-gonic/gin"
-	"github.com/sirupsen/logrus"
 )
 
 type HypertensionHandler struct {
@@ -27,199 +26,204 @@ type HypertensionCardView struct {
 func NewHypertensionHandler(
 	hypertensionRepository *repository.HypertensionRepository,
 ) *HypertensionHandler {
-
 	return &HypertensionHandler{
 		HypertensionRepository: hypertensionRepository,
 	}
 }
 
+// GET — лента
 func (h *HypertensionHandler) ShowHypertensionFeed(ctx *gin.Context) {
-
-	published, err := h.HypertensionRepository.PublishedHypertensionServices()
-
+	service, err := h.getHypertensionServiceForFeed(ctx)
 	if err != nil {
-		logrus.Error(err)
+		ctx.String(http.StatusNotFound, err.Error())
+		return
+	}
+
+	ctx.HTML(http.StatusOK, "hypertension_feed.html", gin.H{
+		"Card": h.BuildHypertensionCardView(service),
+	})
+}
+
+// GET — черновик
+func (h *HypertensionHandler) ShowHypertensionDraft(ctx *gin.Context) {
+	draft, err := h.HypertensionRepository.HypertensionDraftService()
+	if err != nil {
 		ctx.String(http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	rawID := strings.Trim(ctx.Param("serviceID"), "/")
-
-	var hypertensionService ds.HypertensionService
-
-	if rawID == "" {
-
-		hypertensionService = published[0]
-
-	} else {
-
-		serviceID, parseErr := strconv.Atoi(rawID)
-
-		if parseErr != nil {
-			ctx.String(
-				http.StatusBadRequest,
-				"некорректный id карточки гипертонии",
-			)
-			return
-		}
-
-		if ctx.Query("next") == "true" {
-
-			hypertensionService, err =
-				h.HypertensionRepository.NextPublishedHypertensionService(serviceID)
-
-		} else {
-
-			hypertensionService, err =
-				h.HypertensionRepository.HypertensionServiceByID(serviceID)
-
-		}
-
-		if err != nil {
-
-			logrus.Warn(err)
-
-			ctx.String(
-				http.StatusNotFound,
-				err.Error(),
-			)
-
-			return
-		}
-	}
-
-	ctx.HTML(
-		http.StatusOK,
-		"hypertension_feed.html",
-		gin.H{
-			"Card": h.BuildHypertensionCardView(hypertensionService),
-		},
-	)
+	ctx.HTML(http.StatusOK, "hypertension_draft.html", gin.H{
+		"Card": h.BuildHypertensionCardView(draft),
+	})
 }
 
-func (h *HypertensionHandler) ShowHypertensionDraft(
-	ctx *gin.Context,
-) {
-
-	hypertensionDraft, err :=
-		h.HypertensionRepository.HypertensionDraftService()
-
+// POST — публикация через ORM
+func (h *HypertensionHandler) PublishHypertensionDraft(ctx *gin.Context) {
+	serviceID, systolicBP, diastolicBP, err := parseDraftForm(ctx)
 	if err != nil {
-
-		logrus.Error(err)
-
-		ctx.String(
-			http.StatusInternalServerError,
-			err.Error(),
-		)
-
+		ctx.String(http.StatusBadRequest, "некорректные данные")
 		return
 	}
 
-	ctx.HTML(
-		http.StatusOK,
-		"hypertension_draft.html",
-		gin.H{
-			"Card": h.BuildHypertensionCardView(hypertensionDraft),
-		},
+	err = h.HypertensionRepository.PublishHypertensionDraft(
+		serviceID,
+		ctx.PostForm("description"),
+		systolicBP,
+		diastolicBP,
 	)
+
+	if err != nil {
+		ctx.String(http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	ctx.Redirect(http.StatusSeeOther, "/stages")
 }
 
-func (h *HypertensionHandler) ShowHypertensionGrid(
+// GET — плитка и поиск
+func (h *HypertensionHandler) ShowHypertensionGrid(ctx *gin.Context) {
+	services, filterError, err := h.getHypertensionServicesForGrid(ctx)
+	if err != nil {
+		ctx.String(http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	cards := make([]HypertensionCardView, 0, len(services))
+
+	for _, service := range services {
+		cards = append(cards, h.BuildHypertensionCardView(service))
+	}
+
+	ctx.HTML(http.StatusOK, "hypertension_grid.html", gin.H{
+		"Cards":       cards,
+		"SBPQuery":    ctx.Query("sbp"),
+		"FilterError": filterError,
+	})
+}
+
+// POST — удаление чистый SQL
+func (h *HypertensionHandler) DeleteHypertensionService(ctx *gin.Context) {
+	serviceID, err := strconv.Atoi(ctx.Param("serviceID"))
+	if err != nil {
+		ctx.String(http.StatusBadRequest, "некорректный id")
+		return
+	}
+
+	err = h.HypertensionRepository.DeleteHypertensionServiceSQL(
+		ctx.Request.Context(),
+		serviceID,
+	)
+
+	if err != nil {
+		ctx.String(http.StatusNotFound, err.Error())
+		return
+	}
+
+	ctx.Redirect(http.StatusSeeOther, "/stages")
+}
+
+// --------------------
+// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+// --------------------
+
+func (h *HypertensionHandler) getHypertensionServiceForFeed(
 	ctx *gin.Context,
-) {
+) (ds.HypertensionService, error) {
+
+	rawID := strings.Trim(ctx.Param("serviceID"), "/")
+
+	if rawID == "" {
+		services, err :=
+			h.HypertensionRepository.PublishedHypertensionServices()
+
+		if err != nil {
+			return ds.HypertensionService{}, err
+		}
+
+		return services[0], nil
+	}
+
+	serviceID, err := strconv.Atoi(rawID)
+	if err != nil {
+		return ds.HypertensionService{}, err
+	}
+
+	if ctx.Query("next") == "true" {
+		return h.HypertensionRepository.
+			NextPublishedHypertensionService(serviceID)
+	}
+
+	return h.HypertensionRepository.
+		HypertensionServiceByID(serviceID)
+}
+
+func parseDraftForm(
+	ctx *gin.Context,
+) (int, int, int, error) {
+
+	serviceID, err := strconv.Atoi(ctx.PostForm("service_id"))
+	if err != nil {
+		return 0, 0, 0, err
+	}
+
+	systolicBP, err := strconv.Atoi(ctx.PostForm("sbp"))
+	if err != nil {
+		return 0, 0, 0, err
+	}
+
+	diastolicBP, err := strconv.Atoi(ctx.PostForm("dbp"))
+	if err != nil {
+		return 0, 0, 0, err
+	}
+
+	return serviceID, systolicBP, diastolicBP, nil
+}
+
+func (h *HypertensionHandler) getHypertensionServicesForGrid(
+	ctx *gin.Context,
+) ([]ds.HypertensionService, string, error) {
 
 	sbpQuery := strings.TrimSpace(ctx.Query("sbp"))
 
-	var hypertensionServices []ds.HypertensionService
-
-	var err error
-
-	filterError := ""
-
 	if sbpQuery == "" {
-
-		hypertensionServices, err =
+		services, err :=
 			h.HypertensionRepository.PublishedHypertensionServices()
 
-	} else {
-
-		sbp, parseErr := strconv.Atoi(sbpQuery)
-
-		if parseErr != nil {
-
-			filterError =
-				"Введите САД целым числом, например 150"
-
-			hypertensionServices =
-				[]ds.HypertensionService{}
-
-		} else {
-
-			hypertensionServices, err =
-				h.HypertensionRepository.FilterPublishedHypertensionBySBP(sbp)
-
-		}
+		return services, "", err
 	}
 
+	sbp, err := strconv.Atoi(sbpQuery)
 	if err != nil {
-
-		logrus.Error(err)
-
-		ctx.String(
-			http.StatusInternalServerError,
-			err.Error(),
-		)
-
-		return
+		return []ds.HypertensionService{},
+			"Введите САД целым числом",
+			nil
 	}
 
-	cards := make(
-		[]HypertensionCardView,
-		0,
-		len(hypertensionServices),
-	)
+	services, err :=
+		h.HypertensionRepository.FilterPublishedHypertensionBySBP(sbp)
 
-	for _, hypertensionService := range hypertensionServices {
-
-		cards = append(
-			cards,
-			h.BuildHypertensionCardView(hypertensionService),
-		)
-
-	}
-
-	ctx.HTML(
-		http.StatusOK,
-		"hypertension_grid.html",
-		gin.H{
-			"Cards":       cards,
-			"SBPQuery":    sbpQuery,
-			"FilterError": filterError,
-		},
-	)
+	return services, "", err
 }
 
 func (h *HypertensionHandler) BuildHypertensionCardView(
-	hypertensionService ds.HypertensionService,
+	service ds.HypertensionService,
 ) HypertensionCardView {
 
 	return HypertensionCardView{
-
-		Service: hypertensionService,
+		Service: service,
 
 		StageTitle: ds.HypertensionStageTitleBySBP(
-			hypertensionService.SystolicBP,
+			service.SystolicBP,
 		),
 
 		StageRomanTitle: ds.HypertensionStageRomanTitleBySBP(
-			hypertensionService.SystolicBP,
+			service.SystolicBP,
 		),
 
 		StageRange: ds.HypertensionStageRangeBySBP(
-			hypertensionService.SystolicBP,
+			service.SystolicBP,
 		),
 
-		LikesCount: len(hypertensionService.Likes),
+		LikesCount: len(service.Likes),
 	}
 }

@@ -9,23 +9,15 @@ const (
 )
 
 type HypertensionService struct {
-	ID uint `gorm:"primaryKey"`
-
-	Title string
-
-	// Короткое описание
-	Description string
-
-	// Полное описание для раскрытия
+	ID              uint `gorm:"primaryKey"`
+	Title           string
+	Description     string
 	FullDescription string
-
-	SystolicBP  int
-	DiastolicBP int
-
-	Status HypertensionStatus
-
-	ImageURL string
-	VideoURL string
+	SystolicBP      int
+	DiastolicBP     int
+	Status          HypertensionStatus
+	ImageURL        string
+	VideoURL        string
 
 	Likes []HypertensionLike `gorm:"foreignKey:HypertensionServiceID"`
 }

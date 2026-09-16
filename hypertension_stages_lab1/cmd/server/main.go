@@ -43,21 +43,9 @@ func main() {
 		"./resources",
 	)
 
-	// Главная лента
+	// Лента: /feed/ и /feed/<id> одним GET-маршрутом
 	router.GET(
-		"/",
-		hypertensionHandler.ShowHypertensionFeed,
-	)
-
-	// Лента
-	router.GET(
-		"/feed/",
-		hypertensionHandler.ShowHypertensionFeed,
-	)
-
-	// Конкретная карточка
-	router.GET(
-		"/feed/:serviceID",
+		"/feed/*serviceID",
 		hypertensionHandler.ShowHypertensionFeed,
 	)
 
@@ -67,10 +55,22 @@ func main() {
 		hypertensionHandler.ShowHypertensionDraft,
 	)
 
+	// Публикация черновика через ORM
+	router.POST(
+		"/draft/publish",
+		hypertensionHandler.PublishHypertensionDraft,
+	)
+
 	// Плитка стадий
 	router.GET(
 		"/stages",
 		hypertensionHandler.ShowHypertensionGrid,
+	)
+
+	// Логическое удаление карточки через чистый SQL UPDATE
+	router.POST(
+		"/stages/:serviceID/delete",
+		hypertensionHandler.DeleteHypertensionService,
 	)
 
 	err = router.Run(":8080")

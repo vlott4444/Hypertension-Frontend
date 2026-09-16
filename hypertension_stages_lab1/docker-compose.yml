@@ -1,4 +1,30 @@
 services:
+  postgres:
+    container_name: hypertension_postgres
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres1234
+      POSTGRES_DB: test_db
+    ports:
+      - "5455:5432"
+    volumes:
+      - hypertension-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d test_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  adminer:
+    container_name: hypertension_adminer
+    image: adminer:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8081:8080"
+
   minio:
     container_name: hypertension_minio
     image: quay.io/minio/minio:latest
@@ -29,4 +55,5 @@ services:
       "
 
 volumes:
+  hypertension-postgres-data:
   hypertension-minio-data:

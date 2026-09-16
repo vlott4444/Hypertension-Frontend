@@ -17,25 +17,35 @@
 docker compose up -d
 ```
 
-`minio-init` автоматически создаст публичный bucket `hypertension-media` и загрузит туда изображения и MP4 из `resources/minio`.
+Будут запущены PostgreSQL (`localhost:5455`), Adminer (`http://localhost:8081`) и Minio.
 
-Minio Console: `http://localhost:9001`
-
-- login: `root`
-- password: `rootpassword`
-
-3. Запустить Go-приложение:
+3. Один раз создать таблицы и начальные опубликованные карточки:
 
 ```bash
-go mod tidy
-go run ./cmd/hypertension_stages
+go run ./cmd/migrate
+go run ./cmd/seed
 ```
 
-4. Открыть:
+4. Запустить приложение:
+
+```bash
+go run ./cmd/server
+```
+
+5. Открыть:
 
 - `http://localhost:8080/feed/` — лента;
 - `http://localhost:8080/draft` — черновик/добавление;
 - `http://localhost:8080/stages` — плитка.
+
+### Добавлено для ЛР №2
+
+- при первом `GET /draft`, если черновика нет, он создается в PostgreSQL через GORM;
+- `POST /draft/publish` публикует черновик через ORM;
+- на плитке у каждой опубликованной карточки есть кнопка **Удалить**;
+- `POST /stages/:serviceID/delete` выполняет логическое удаление чистым SQL `UPDATE` через `database/sql`;
+- карточка со статусом `удален` больше не открывается по URL;
+- если URL фото/видео пустой, HTML использует локальные файлы по умолчанию.
 
 ## Ровно 3 GET-маршрута
 
