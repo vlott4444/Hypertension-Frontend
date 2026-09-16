@@ -8,6 +8,7 @@
    Hover: карточки приподнимаются, красные элементы темнеют.
    Форма карточек: крупные скругления 26-36px и нижняя pill-навигация.
 */
+
 :root {
     --accent-red: #B6001A;
     --accent-red-hover: #8F0015;
@@ -52,6 +53,9 @@ textarea {
     background: var(--white);
 }
 
+
+/* ---------- НИЖНЯЯ НАВИГАЦИЯ ---------- */
+
 .bottom-nav {
     position: fixed;
     z-index: 20;
@@ -87,7 +91,9 @@ textarea {
     font-weight: 700;
 }
 
+
 /* ---------- ЛЕНТА ---------- */
+
 .feed-body,
 .feed-shell {
     background: var(--black);
@@ -115,7 +121,11 @@ textarea {
 .feed-shade {
     position: absolute;
     inset: 0;
-    background: linear-gradient(to bottom, rgba(0, 0, 0, .08) 38%, rgba(0, 0, 0, .86) 100%);
+    background: linear-gradient(
+            to bottom,
+            rgba(0, 0, 0, .08) 38%,
+            rgba(0, 0, 0, .86) 100%
+    );
     pointer-events: none;
 }
 
@@ -153,7 +163,6 @@ textarea {
 .heart-icon {
     font-size: 48px;
     line-height: .5;
-
 }
 
 .next-button {
@@ -200,47 +209,52 @@ textarea {
     margin: 8px 0 12px;
 }
 
+
+/* ---------- ОПИСАНИЕ В ЛЕНТЕ ---------- */
+
 .feed-description {
     pointer-events: auto;
 }
-
-
 
 .feed-description summary {
     cursor: pointer;
     list-style: none;
 }
 
-
-
 .feed-description summary::-webkit-details-marker {
     display: none;
+}
+
+.description-short {
+    display: block;
 }
 
 .more-button {
     display: inline;
     margin-left: 5px;
+    cursor: pointer;
+}
+
+.less-button {
+    display: none;
+    margin-left: 5px;
+    cursor: pointer;
 }
 
 .feed-description[open] .more-button {
     display: none;
 }
 
-.description-full {
-    margin-top: 8px;
+.feed-description[open] .less-button {
+    display: inline;
 }
-/* короткий текст */
-.description-short {
-    display: block;
-}
-
-
 
 .description-full {
     margin-top: 8px;
 }
 
 
+/* ---------- ЧЕРНОВИК / ДОБАВЛЕНИЕ ---------- */
 
 .draft-shell {
     min-height: 1054px;
@@ -280,6 +294,7 @@ textarea {
 }
 
 .draft-field input[type="file"],
+.draft-field input[type="text"],
 .draft-field input[type="number"],
 .draft-field textarea {
     width: 100%;
@@ -288,6 +303,11 @@ textarea {
     border-radius: 28px;
     background: var(--white);
     color: var(--graphite);
+}
+
+.draft-field input[type="text"] {
+    height: 52px;
+    padding: 0 16px;
 }
 
 .draft-field input[type="file"] {
@@ -357,7 +377,9 @@ textarea {
     opacity: .9;
 }
 
+
 /* ---------- ПЛИТКА ---------- */
+
 .grid-shell {
     min-height: 1054px;
     padding-bottom: 105px;
@@ -443,7 +465,10 @@ textarea {
     background: var(--accent-red);
     color: var(--white);
     text-decoration: none;
-    transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+    transition:
+            transform .18s ease,
+            box-shadow .18s ease,
+            background .18s ease;
 }
 
 .stage-card:hover {
@@ -494,29 +519,9 @@ textarea {
     font-size: 18px;
 }
 
-@media (max-width: 410px) {
-    .bottom-nav {
-        padding-inline: 22px;
-    }
-    .bottom-nav a {
-        font-size: 22px;
-    }
-    .stage-grid {
-        gap: 18px;
-        padding-inline: 16px;
-    }
-    .stage-card h2 {
-        font-size: 22px;
-    }
-    .stage-card p {
-        font-size: 13px;
-    }
-}
-.feed-description summary::after {
-    content: none !important;
-    display: none !important;
-}
-/* ---------- ЛР 2: публикация и логическое удаление ---------- */
+
+/* ---------- ПУБЛИКАЦИЯ ---------- */
+
 .publish-button {
     width: 100%;
     min-height: 58px;
@@ -536,6 +541,9 @@ textarea {
     background: var(--accent-red-hover);
     transform: translateY(-2px);
 }
+
+
+/* ---------- ЛОГИЧЕСКОЕ УДАЛЕНИЕ ---------- */
 
 .stage-card-link {
     display: block;
@@ -563,4 +571,31 @@ textarea {
 
 .stage-delete-button:hover {
     background: var(--accent-red-hover);
+}
+
+
+/* ---------- АДАПТИВ ---------- */
+
+@media (max-width: 410px) {
+
+    .bottom-nav {
+        padding-inline: 22px;
+    }
+
+    .bottom-nav a {
+        font-size: 22px;
+    }
+
+    .stage-grid {
+        gap: 18px;
+        padding-inline: 16px;
+    }
+
+    .stage-card h2 {
+        font-size: 22px;
+    }
+
+    .stage-card p {
+        font-size: 13px;
+    }
 }
