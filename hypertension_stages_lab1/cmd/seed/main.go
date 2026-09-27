@@ -10,20 +10,82 @@ import (
 )
 
 func main() {
-
 	godotenv.Load()
 
 	db, err := gorm.Open(
 		postgres.Open(dsn.FromEnv()),
 		&gorm.Config{},
 	)
-
 	if err != nil {
 		panic(err)
 	}
 
-	services := []ds.HypertensionService{
+	// -------------------------------------------------------
+	// 1. ПОЛЬЗОВАТЕЛИ
+	// -------------------------------------------------------
 
+	users := []ds.User{
+		{
+			Username: "elizabeth",
+			Password: "pass1",
+		},
+		{
+			Username: "anna",
+			Password: "pass2",
+		},
+		{
+			Username: "maxim",
+			Password: "pass3",
+		},
+		{
+			Username: "dmitry",
+			Password: "pass4",
+		},
+		{
+			Username: "sofia",
+			Password: "pass5",
+		},
+		{
+			Username: "alexey",
+			Password: "pass6",
+		},
+	}
+
+	usersByUsername := make(map[string]ds.User)
+
+	for _, seedUser := range users {
+		var user ds.User
+
+		// Если пользователь уже существует,
+		// Assign обновит ему пароль.
+		result := db.
+			Where("username = ?", seedUser.Username).
+			Assign(ds.User{
+				Password: seedUser.Password,
+			}).
+			FirstOrCreate(&user, seedUser)
+
+		if result.Error != nil {
+			panic(result.Error)
+		}
+
+		usersByUsername[user.Username] = user
+	}
+
+	// Все тестовые карточки принадлежат Elizabeth.
+	owner := usersByUsername["elizabeth"]
+
+	// -------------------------------------------------------
+	// 2. MINIO
+	// -------------------------------------------------------
+
+	const minioBaseURL = "http://localhost:9000/hypertension-media"
+
+	// -------------------------------------------------------
+	// 3. КАРТОЧКИ
+	// -------------------------------------------------------
+
+	services := []ds.HypertensionService{
 		{
 			Title: "Оптимальное давление",
 
@@ -34,10 +96,11 @@ func main() {
 			SystolicBP:  110,
 			DiastolicBP: 70,
 
-			ImageURL: "/resources/media/stage_optimal.png",
-			VideoURL: "/resources/media/optimal.mp4",
+			ImageURL: minioBaseURL + "/stage_optimal.png",
+			VideoURL: minioBaseURL + "/optimal.mp4",
 
 			Status: ds.HypertensionPublished,
+			UserID: owner.ID,
 		},
 
 		{
@@ -50,10 +113,11 @@ func main() {
 			SystolicBP:  125,
 			DiastolicBP: 78,
 
-			ImageURL: "/resources/media/stage_normal.png",
-			VideoURL: "/resources/media/normal.mp4",
+			ImageURL: minioBaseURL + "/stage_normal.png",
+			VideoURL: minioBaseURL + "/normal.mp4",
 
 			Status: ds.HypertensionPublished,
+			UserID: owner.ID,
 		},
 
 		{
@@ -66,10 +130,11 @@ func main() {
 			SystolicBP:  135,
 			DiastolicBP: 85,
 
-			ImageURL: "/resources/media/stage_high_normal.png",
-			VideoURL: "/resources/media/high_normal.mp4",
+			ImageURL: minioBaseURL + "/stage_high_normal.png",
+			VideoURL: minioBaseURL + "/high_normal.mp4",
 
 			Status: ds.HypertensionPublished,
+			UserID: owner.ID,
 		},
 
 		{
@@ -82,10 +147,11 @@ func main() {
 			SystolicBP:  150,
 			DiastolicBP: 95,
 
-			ImageURL: "/resources/media/stage1.png",
-			VideoURL: "/resources/media/stage1.mp4",
+			ImageURL: minioBaseURL + "/stage1.png",
+			VideoURL: minioBaseURL + "/stage1.mp4",
 
 			Status: ds.HypertensionPublished,
+			UserID: owner.ID,
 		},
 
 		{
@@ -98,10 +164,11 @@ func main() {
 			SystolicBP:  170,
 			DiastolicBP: 105,
 
-			ImageURL: "/resources/media/stage2.png",
-			VideoURL: "/resources/media/stage2.mp4",
+			ImageURL: minioBaseURL + "/stage2.png",
+			VideoURL: minioBaseURL + "/stage2.mp4",
 
 			Status: ds.HypertensionPublished,
+			UserID: owner.ID,
 		},
 
 		{
@@ -114,11 +181,37 @@ func main() {
 			SystolicBP:  190,
 			DiastolicBP: 120,
 
-			ImageURL: "/resources/media/stage3.png",
-			VideoURL: "/resources/media/stage3.mp4",
+			ImageURL: minioBaseURL + "/stage3.png",
+			VideoURL: minioBaseURL + "/stage3.mp4",
 
 			Status: ds.HypertensionPublished,
+			UserID: owner.ID,
 		},
+
+		// -------------------------------------------------------
+		// ЧЕРНОВИК
+		// -------------------------------------------------------
+
+		{
+			Title: "Черновик I стадии",
+
+			Description: "Тестовая карточка в статусе черновик",
+
+			FullDescription: "Эта запись используется для демонстрации карточки в статусе черновик.",
+
+			SystolicBP:  150,
+			DiastolicBP: 95,
+
+			ImageURL: minioBaseURL + "/draft_stage1.png",
+			VideoURL: minioBaseURL + "/draft_stage1.mp4",
+
+			Status: ds.HypertensionDraft,
+			UserID: owner.ID,
+		},
+
+		// -------------------------------------------------------
+		// ЛОГИЧЕСКИ УДАЛЁННАЯ КАРТОЧКА
+		// -------------------------------------------------------
 
 		{
 			Title: "Удаленная карточка II стадии",
@@ -130,103 +223,38 @@ func main() {
 			SystolicBP:  170,
 			DiastolicBP: 105,
 
-			ImageURL: "/resources/media/deleted_stage2.png",
-			VideoURL: "/resources/media/deleted_stage2.mp4",
+			ImageURL: minioBaseURL + "/deleted_stage2.png",
+			VideoURL: minioBaseURL + "/deleted_stage2.mp4",
 
 			Status: ds.HypertensionDeleted,
+			UserID: owner.ID,
 		},
 	}
 
-	// Создаём карточки только если их ещё нет, чтобы повторный запуск seed
-	// не плодил дубликаты. Сохраняем реальные ID из БД для таблицы лайков.
-	servicesByTitle := make(map[string]ds.HypertensionService)
+	// -------------------------------------------------------
+	// 4. СОЗДАЁМ ИЛИ ОБНОВЛЯЕМ КАРТОЧКИ
+	// -------------------------------------------------------
 
 	for _, service := range services {
 		var stored ds.HypertensionService
-		result := db.Where("title = ?", service.Title).FirstOrCreate(&stored, service)
+
+		result := db.
+			Where("title = ?", service.Title).
+			Assign(service).
+			FirstOrCreate(&stored)
+
 		if result.Error != nil {
 			panic(result.Error)
 		}
-
-		servicesByTitle[stored.Title] = stored
 	}
 
-	// Пользователи для демонстрации m-m связи пользователь <-> услуга.
-	usernames := []string{
-		"elizabeth",
-		"anna",
-		"maxim",
-		"dmitry",
-		"sofia",
-		"alexey",
-	}
-
-	usersByUsername := make(map[string]ds.User)
-
-	for _, username := range usernames {
-		var user ds.User
-		result := db.Where("username = ?", username).FirstOrCreate(
-			&user,
-			ds.User{Username: username},
-		)
-		if result.Error != nil {
-			panic(result.Error)
-		}
-
-		usersByUsername[username] = user
-	}
-
-	// Набор лайков. Один пользователь лайкает конкретную карточку не более одного раза.
-	// Количество лайков на опубликованных карточках специально разное, чтобы это было
-	// хорошо видно и в приложении, и в Adminer/pgAdmin.
-	//likes := []struct {
-	//	Username     string
-	//	ServiceTitle string
-	//}{
-	//	{"elizabeth", "Оптимальное давление"},
-	//	{"anna", "Оптимальное давление"},
-	//	{"maxim", "Оптимальное давление"},
+	// -------------------------------------------------------
+	// 5. ЛАЙКИ
+	// -------------------------------------------------------
 	//
-	//	{"elizabeth", "Нормальное давление"},
-	//	{"anna", "Нормальное давление"},
-	//	{"sofia", "Нормальное давление"},
-	//	{"alexey", "Нормальное давление"},
+	// Во второй лабораторной ставить лайки через приложение
+	// не требуется.
 	//
-	//	{"maxim", "Высокое нормальное давление"},
-	//	{"dmitry", "Высокое нормальное давление"},
-	//
-	//	{"elizabeth", "I стадия гипертонии"},
-	//	{"anna", "I стадия гипертонии"},
-	//	{"maxim", "I стадия гипертонии"},
-	//	{"dmitry", "I стадия гипертонии"},
-	//	{"sofia", "I стадия гипертонии"},
-	//
-	//	{"anna", "II стадия гипертонии"},
-	//	{"alexey", "II стадия гипертонии"},
-	//	{"sofia", "II стадия гипертонии"},
-	//
-	//	{"elizabeth", "III стадия гипертонии"},
-	//	{"dmitry", "III стадия гипертонии"},
-	//	{"alexey", "III стадия гипертонии"},
-	//}
-	//
-	//for _, item := range likes {
-	//	user := usersByUsername[item.Username]
-	//	service := servicesByTitle[item.ServiceTitle]
-	//
-	//	like := ds.HypertensionLike{
-	//		UserID:                user.ID,
-	//		HypertensionServiceID: service.ID,
-	//	}
-	//
-	//	result := db.Where(
-	//		"user_id = ? AND hypertension_service_id = ?",
-	//		like.UserID,
-	//		like.HypertensionServiceID,
-	//	).FirstOrCreate(&like)
-	//
-	//	if result.Error != nil {
-	//		panic(result.Error)
-	//	}
-	//}
+	// Если понадобятся тестовые записи m-m,
+	// этот блок можно добавить позже.
 }

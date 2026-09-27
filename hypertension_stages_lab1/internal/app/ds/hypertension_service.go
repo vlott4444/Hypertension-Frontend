@@ -19,12 +19,11 @@ type HypertensionService struct {
 	ImageURL        string
 	VideoURL        string
 
+	UserID uint // ← внешний ключ
+	User   User `gorm:"foreignKey:UserID;references:ID"`
+
 	Likes []HypertensionLike `gorm:"foreignKey:HypertensionServiceID"`
 }
-
-// --------------------
-// Логика определения стадии
-// --------------------
 
 func HypertensionStageNumberBySBP(sbp int) int {
 

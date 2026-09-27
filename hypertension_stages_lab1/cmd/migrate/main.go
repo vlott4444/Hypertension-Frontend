@@ -23,8 +23,8 @@ func main() {
 	}
 
 	err = db.AutoMigrate(
-		&ds.User{},
 		&ds.HypertensionService{},
+		&ds.User{},
 		&ds.HypertensionLike{},
 	)
 
