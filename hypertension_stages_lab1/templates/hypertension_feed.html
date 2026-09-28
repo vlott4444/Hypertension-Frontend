@@ -38,10 +38,11 @@
 
         <div class="feed-shade"></div>
 
-
+        <input type="checkbox"
+               id="desc-toggle-{{ .Card.Service.ID }}"
+               class="desc-toggle">
 
         <aside class="feed-actions">
-
 
             <div class="feed-like" aria-label="Количество лайков">
 
@@ -54,7 +55,6 @@
             </div>
 
 
-
             <a class="next-button"
                href="/feed/{{ .Card.Service.ID }}?next=true">
 
@@ -62,15 +62,10 @@
 
             </a>
 
-
         </aside>
 
 
-
-
-
         <section class="feed-copy">
-
 
             <h1>
                 {{ .Card.StageRomanTitle }}<br>
@@ -78,79 +73,42 @@
                 болезни
             </h1>
 
-
-
             <div class="feed-divider"></div>
 
+            <div class="feed-description">
 
+                <p class="desc-text">
+                    {{ .Card.Service.Description }}
+                </p>
 
+                <label for="desc-toggle-{{ .Card.Service.ID }}" class="more-button">
+                    <span class="more-label-open">ещё</span>
+                    <span class="more-label-close">свернуть</span>
+                </label>
 
-
-            <details class="feed-description">
-
-                <summary>
-        <span class="description-short">
-
-            {{ .Card.Service.Description }}
-
-            <span class="more-button">
-                ещё
-            </span>
-
-<!--            <span class="less-button">-->
-<!--                меньше-->
-<!--            </span>-->
-
-        </span>
-                </summary>
-
-                <div class="description-full">
-                    {{ .Card.Service.FullDescription }}
-                </div>
-
-            </details>
-
-
+            </div>
 
         </section>
-
 
 
     </section>
 
 
-
-
-
     <nav class="bottom-nav" aria-label="Основная навигация">
 
-
         <a class="active" href="/feed/">
-
             лента
-
         </a>
-
-
 
         <a href="/draft">
-
             добавить
-
         </a>
-
-
 
         <a href="/stages">
-
             плитка
-
         </a>
 
-
-
     </nav>
-
 
 
 </main>

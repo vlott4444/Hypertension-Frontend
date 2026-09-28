@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -82,7 +83,9 @@ func (h *HypertensionHandler) PublishHypertensionDraft(ctx *gin.Context) {
 
 // GET — плитка и поиск
 func (h *HypertensionHandler) ShowHypertensionGrid(ctx *gin.Context) {
-	services, filterError, err := h.getHypertensionServicesForGrid(ctx)
+	services, boundsMin, boundsMax, sbpMin, sbpMax, filterError, err :=
+		h.getHypertensionServicesForGrid(ctx)
+
 	if err != nil {
 		ctx.String(http.StatusInternalServerError, err.Error())
 		return
@@ -95,8 +98,14 @@ func (h *HypertensionHandler) ShowHypertensionGrid(ctx *gin.Context) {
 	}
 
 	ctx.HTML(http.StatusOK, "hypertension_grid.html", gin.H{
-		"Cards":       cards,
-		"SBPQuery":    ctx.Query("sbp"),
+		"Cards": cards,
+		"SBPBounds": gin.H{
+			"Min": boundsMin,
+			"Max": boundsMax,
+		},
+		"SBPMin":      sbpMin,
+		"SBPMax":      sbpMax,
+		"SBPQuery":    fmt.Sprintf("%d–%d", sbpMin, sbpMax),
 		"FilterError": filterError,
 	})
 }
@@ -179,30 +188,62 @@ func parseDraftForm(
 	return serviceID, systolicBP, diastolicBP, nil
 }
 
+// getHypertensionServicesForGrid возвращает карточки, отфильтрованные
+// по диапазону [sbp_min, sbp_max], а также границы шкалы и текущие
+// значения ползунков для шаблона.
 func (h *HypertensionHandler) getHypertensionServicesForGrid(
 	ctx *gin.Context,
-) ([]ds.HypertensionService, string, error) {
-
-	sbpQuery := strings.TrimSpace(ctx.Query("sbp"))
-
-	if sbpQuery == "" {
-		services, err :=
-			h.HypertensionRepository.PublishedHypertensionServices()
-
-		return services, "", err
-	}
-
-	sbp, err := strconv.Atoi(sbpQuery)
+) (
+	services []ds.HypertensionService,
+	boundsMin, boundsMax int,
+	sbpMin, sbpMax int,
+	filterError string,
+	err error,
+) {
+	// 1. Границы шкалы — минимум и максимум САД по всем
+	//    опубликованным карточкам.
+	boundsMin, boundsMax, err = h.HypertensionRepository.SBPBounds()
 	if err != nil {
-		return []ds.HypertensionService{},
-			"Введите САД целым числом",
-			nil
+		return nil, 0, 0, 0, 0, "", err
 	}
 
-	services, err :=
-		h.HypertensionRepository.FilterPublishedHypertensionBySBP(sbp)
+	if boundsMin == 0 && boundsMax == 0 {
+		boundsMin, boundsMax = 100, 200
+	}
 
-	return services, "", err
+	// 2. Текущие значения ползунков. По умолчанию — границы шкалы.
+	sbpMin = boundsMin
+	sbpMax = boundsMax
+
+	if raw := strings.TrimSpace(ctx.Query("sbp_min")); raw != "" {
+		v, convErr := strconv.Atoi(raw)
+		if convErr != nil {
+			return nil, boundsMin, boundsMax, boundsMin, boundsMax,
+				"Минимальное САД должно быть целым числом", nil
+		}
+		sbpMin = v
+	}
+
+	if raw := strings.TrimSpace(ctx.Query("sbp_max")); raw != "" {
+		v, convErr := strconv.Atoi(raw)
+		if convErr != nil {
+			return nil, boundsMin, boundsMax, boundsMin, boundsMax,
+				"Максимальное САД должно быть целым числом", nil
+		}
+		sbpMax = v
+	}
+
+	// 3. Без JS ползунки могут перескочить друг через друга —
+	//    просто меняем местами, чтобы фильтр остался корректным.
+	if sbpMin > sbpMax {
+		sbpMin, sbpMax = sbpMax, sbpMin
+	}
+
+	// 4. Фильтрация по диапазону.
+	services, err = h.HypertensionRepository.
+		FilterPublishedHypertensionBySBPRange(sbpMin, sbpMax)
+
+	return services, boundsMin, boundsMax, sbpMin, sbpMax, "", err
 }
 
 func (h *HypertensionHandler) BuildHypertensionCardView(

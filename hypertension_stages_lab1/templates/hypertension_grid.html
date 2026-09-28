@@ -19,7 +19,7 @@
 
             <div class="slider-header">
 
-                <label for="sbp">
+                <label for="sbp_min">
                     Систолическое давление
                 </label>
 
@@ -33,24 +33,33 @@
 
             </div>
 
+            <!-- ЛЕВАЯ граница: минимум берётся из карточек -->
             <input
-                    id="sbp"
-                    name="sbp"
+                    id="sbp_min"
+                    name="sbp_min"
                     type="range"
-                    min="100"
-                    max="200"
+                    min="{{ .SBPBounds.Min }}"
+                    max="{{ .SBPBounds.Max }}"
                     step="1"
-                    value="{{ if .SBPQuery }}{{ .SBPQuery }}{{ else }}140{{ end }}"
-                    aria-label="Фильтр по систолическому артериальному давлению"
+                    value="{{ if .SBPMin }}{{ .SBPMin }}{{ else }}{{ .SBPBounds.Min }}{{ end }}"
+                    aria-label="Минимальное систолическое давление"
+            >
+
+            <!-- ПРАВАЯ граница: максимум берётся из карточек -->
+            <input
+                    id="sbp_max"
+                    name="sbp_max"
+                    type="range"
+                    min="{{ .SBPBounds.Min }}"
+                    max="{{ .SBPBounds.Max }}"
+                    step="1"
+                    value="{{ if .SBPMax }}{{ .SBPMax }}{{ else }}{{ .SBPBounds.Max }}{{ end }}"
+                    aria-label="Максимальное систолическое давление"
             >
 
             <div class="slider-scale">
-                <span>100</span>
-                <span>120</span>
-                <span>140</span>
-                <span>160</span>
-                <span>180</span>
-                <span>200</span>
+                <span>{{ .SBPBounds.Min }}</span>
+                <span>{{ .SBPBounds.Max }}</span>
             </div>
 
             <div class="slider-actions">

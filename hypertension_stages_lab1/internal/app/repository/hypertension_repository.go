@@ -88,12 +88,11 @@ func (r *HypertensionRepository) HypertensionDraftService() (ds.HypertensionServ
 	}
 
 	service = ds.HypertensionService{
-		Title:           "Новая карточка стадии гипертонии",
-		Description:     "",
-		FullDescription: "",
-		SystolicBP:      140,
-		DiastolicBP:     90,
-		Status:          ds.HypertensionDraft,
+		Title:       "Новая карточка стадии гипертонии",
+		Description: "",
+		SystolicBP:  140,
+		DiastolicBP: 90,
+		Status:      ds.HypertensionDraft,
 		// URL намеренно пустые: в HTML предусмотрены локальные фото/видео по умолчанию.
 		ImageURL: "",
 		VideoURL: "",
@@ -195,6 +194,7 @@ func (r *HypertensionRepository) NextPublishedHypertensionService(
 }
 
 // Фильтр по систолическому давлению.
+// Оставлен для обратной совместимости, если где-то ещё вызывается.
 func (r *HypertensionRepository) FilterPublishedHypertensionBySBP(
 	sbp int,
 ) ([]ds.HypertensionService, error) {
@@ -213,6 +213,54 @@ func (r *HypertensionRepository) FilterPublishedHypertensionBySBP(
 			max,
 		).
 		Order("id ASC").
+		Find(&services).
+		Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return services, nil
+}
+
+// SBPBounds возвращает минимальное и максимальное систолическое давление
+// среди опубликованных карточек. Нужно для границ шкалы двух слайдеров.
+func (r *HypertensionRepository) SBPBounds() (int, int, error) {
+	var bounds struct {
+		Min int
+		Max int
+	}
+
+	err := r.db.
+		Model(&ds.HypertensionService{}).
+		Where("status = ?", ds.HypertensionPublished).
+		Select("COALESCE(MIN(systolic_bp), 0) AS min, COALESCE(MAX(systolic_bp), 0) AS max").
+		Scan(&bounds).
+		Error
+
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return bounds.Min, bounds.Max, nil
+}
+
+// FilterPublishedHypertensionBySBPRange возвращает опубликованные карточки,
+// у которых SystolicBP входит в диапазон [min, max].
+func (r *HypertensionRepository) FilterPublishedHypertensionBySBPRange(
+	min, max int,
+) ([]ds.HypertensionService, error) {
+	var services []ds.HypertensionService
+
+	err := r.db.
+		Preload("Likes").
+		Where(
+			"status = ? AND systolic_bp BETWEEN ? AND ?",
+			ds.HypertensionPublished,
+			min,
+			max,
+		).
+		Order("systolic_bp ASC").
 		Find(&services).
 		Error
 

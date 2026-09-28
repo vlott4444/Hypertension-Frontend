@@ -139,6 +139,7 @@ textarea {
     align-items: center;
     gap: 12px;
     color: var(--white);
+    transition: opacity .25s ease, filter .25s ease;
 }
 
 .pressure-chip {
@@ -216,41 +217,66 @@ textarea {
     pointer-events: auto;
 }
 
-.feed-description summary {
-    cursor: pointer;
-    list-style: none;
+/* сам чекбокс скрыт, но живёт в DOM до .feed-actions */
+.desc-toggle {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+    width: 0;
+    height: 0;
 }
 
-.feed-description summary::-webkit-details-marker {
-    display: none;
+/* текст: 2 строки по умолчанию */
+.desc-text {
+    margin: 0;
+    line-height: 1.3;
+    color: var(--white);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
-.description-short {
+/* развёрнутое состояние: полный текст */
+.desc-toggle:checked ~ .feed-copy .desc-text {
     display: block;
+    overflow: visible;
+    -webkit-line-clamp: unset;
 }
 
+/* кнопка — всегда видна */
 .more-button {
-    display: inline;
-    margin-left: 5px;
+    display: inline-block;
+    margin-top: 6px;
     cursor: pointer;
+    color: var(--white);
+    text-decoration: underline;
+    font: inherit;
 }
 
-.less-button {
-    display: none;
-    margin-left: 5px;
-    cursor: pointer;
-}
-
-.feed-description[open] .more-button {
+/* по умолчанию показываем «ещё», «свернуть» скрыта */
+.more-label-close {
     display: none;
 }
 
-.feed-description[open] .less-button {
+/* при отмеченном чекбоксе — наоборот */
+.desc-toggle:checked ~ .feed-copy .more-label-open {
+    display: none;
+}
+
+.desc-toggle:checked ~ .feed-copy .more-label-close {
     display: inline;
 }
 
-.description-full {
-    margin-top: 8px;
+
+/* ---------- ЗАТУХАНИЕ ДЕЙСТВИЙ ПРИ РАСКРЫТОМ ОПИСАНИИ ---------- */
+
+.desc-toggle:checked ~ .feed-actions {
+    z-index: 1;                 /* ниже .feed-copy (z-index: 5) */
+    opacity: .15;               /* почти не видно */
+    pointer-events: none;
+    user-select: none;
+    transition: opacity .25s ease, z-index 0s;
 }
 
 
