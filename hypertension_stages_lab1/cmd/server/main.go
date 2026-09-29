@@ -19,62 +19,52 @@ func main() {
 		postgres.Open(dsn.FromEnv()),
 		&gorm.Config{},
 	)
-
 	if err != nil {
 		panic("failed to connect database")
 	}
 
-	hypertensionRepository :=
-		repository.NewHypertensionRepository(db)
+	// Репозиторий
+	hypertensionRepository := repository.NewHypertensionRepository(db)
 
-	hypertensionHandler :=
-		handler.NewHypertensionHandler(
-			hypertensionRepository,
-		)
+	// HTML-хендлер (лабы 1-3)
+	hypertensionHandler := handler.NewHypertensionHandler(hypertensionRepository)
+
+	// API-хендлер (лаба 4)
+	apiHandler := handler.NewAPIHandler(hypertensionRepository)
 
 	router := gin.Default()
 
 	// HTML шаблоны
 	router.LoadHTMLGlob("./templates/*")
+	router.Static("/resources", "./resources")
 
-	// CSS, картинки, видео
-	router.Static(
-		"/resources",
-		"./resources",
-	)
+	// ---------- HTML-роуты (не трогаем) ----------
+	router.GET("/feed/*serviceID", hypertensionHandler.ShowHypertensionFeed)
+	router.GET("/draft", hypertensionHandler.ShowHypertensionDraft)
+	router.POST("/draft/publish", hypertensionHandler.PublishHypertensionDraft)
+	router.GET("/stages", hypertensionHandler.ShowHypertensionGrid)
+	router.POST("/stages/:serviceID/delete", hypertensionHandler.DeleteHypertensionService)
 
-	// Лента: /feed/ и /feed/<id> одним GET-маршрутом
-	router.GET(
-		"/feed/*serviceID",
-		hypertensionHandler.ShowHypertensionFeed,
-	)
+	// ---------- REST API (лаба 4) ----------
+	api := router.Group("/api")
+	{
+		// Домен услуги
+		api.GET("/services", apiHandler.GetServices)
+		api.GET("/feed", apiHandler.GetFeed)
+		api.GET("/feed/:id", apiHandler.GetFeedByID)
+		api.GET("/draft", apiHandler.GetDraft)
+		api.POST("/services", apiHandler.CreateService)
+		api.PUT("/services/:id/publish", apiHandler.PublishService)
+		api.DELETE("/services/:id", apiHandler.DeleteService)
+		api.POST("/services/:id/like", apiHandler.LikeService)
 
-	// Черновик
-	router.GET(
-		"/draft",
-		hypertensionHandler.ShowHypertensionDraft,
-	)
-
-	// Публикация черновика через ORM
-	router.POST(
-		"/draft/publish",
-		hypertensionHandler.PublishHypertensionDraft,
-	)
-
-	// Плитка стадий
-	router.GET(
-		"/stages",
-		hypertensionHandler.ShowHypertensionGrid,
-	)
-
-	// Логическое удаление карточки через чистый SQL UPDATE
-	router.POST(
-		"/stages/:serviceID/delete",
-		hypertensionHandler.DeleteHypertensionService,
-	)
+		// Домен пользователя
+		api.POST("/auth/register", apiHandler.Register)
+		api.POST("/auth/login", apiHandler.Login)
+		api.POST("/auth/logout", apiHandler.Logout)
+	}
 
 	err = router.Run(":8080")
-
 	if err != nil {
 		panic(err)
 	}
