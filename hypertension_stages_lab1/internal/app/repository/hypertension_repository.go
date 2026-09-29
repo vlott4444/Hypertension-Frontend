@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"hypertensionstages/internal/app/ds"
 
@@ -94,8 +95,8 @@ func (r *HypertensionRepository) HypertensionDraftService() (ds.HypertensionServ
 		DiastolicBP: 90,
 		Status:      ds.HypertensionDraft,
 		// URL намеренно пустые: в HTML предусмотрены локальные фото/видео по умолчанию.
-		ImageURL: "",
-		VideoURL: "",
+		ImageName: "",
+		VideoName: "",
 	}
 
 	if err := r.db.Create(&service).Error; err != nil {
@@ -287,4 +288,191 @@ func hypertensionRange(stage int) (int, int) {
 	default:
 		return 180, 300
 	}
+}
+
+// ============================================================
+// API-МЕТОДЫ
+// ============================================================
+
+func (r *HypertensionRepository) APIGetServices(
+	userID uint, filter string,
+) ([]ds.HypertensionService, error) {
+
+	var services []ds.HypertensionService
+
+	q := r.db.
+		Where("status = ?", ds.HypertensionPublished).
+		Order("id ASC")
+
+	if filter != "" {
+		q = q.Where("title ILIKE ?", "%"+filter+"%")
+	}
+
+	if err := q.Find(&services).Error; err != nil {
+		return nil, err
+	}
+
+	return services, nil
+}
+
+// APIGetFeed — лента опубликованных.
+func (r *HypertensionRepository) APIGetFeed() ([]ds.HypertensionService, error) {
+	var services []ds.HypertensionService
+	err := r.db.
+		Where("status = ?", ds.HypertensionPublished).
+		Order("id ASC").
+		Find(&services).Error
+	return services, err
+}
+
+// APIPublishedByID — опубликованная по ID.
+func (r *HypertensionRepository) APIPublishedByID(
+	id int,
+) (ds.HypertensionService, error) {
+	var s ds.HypertensionService
+	err := r.db.
+		Where("id = ? AND status = ?", id, ds.HypertensionPublished).
+		First(&s).Error
+	return s, err
+}
+
+// APINextPublished — следующая опубликованная после ID (по кругу).
+func (r *HypertensionRepository) APINextPublished(
+	id int,
+) (ds.HypertensionService, error) {
+	services, err := r.APIGetFeed()
+	if err != nil {
+		return ds.HypertensionService{}, err
+	}
+	for i, s := range services {
+		if int(s.ID) == id {
+			next := services[(i+1)%len(services)]
+			return next, nil
+		}
+	}
+	return ds.HypertensionService{}, fmt.Errorf("id=%d not found", id)
+}
+
+// APIGetDraft — черновик пользователя.
+func (r *HypertensionRepository) APIGetDraft(
+	userID uint,
+) (ds.HypertensionService, error) {
+	var s ds.HypertensionService
+	err := r.db.
+		Where("user_id = ? AND status = ?", userID, ds.HypertensionDraft).
+		First(&s).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return ds.HypertensionService{}, nil
+	}
+	return s, err
+}
+
+// APICreateService — создание услуги.
+func (r *HypertensionRepository) APICreateService(
+	userID uint,
+	title, description string,
+	sbp, dbp int,
+	imageName, videoName string,
+) (ds.HypertensionService, error) {
+
+	s := ds.HypertensionService{
+		Title:       title,
+		Description: description,
+		SystolicBP:  sbp,
+		DiastolicBP: dbp,
+		Status:      ds.HypertensionDraft,
+		UserID:      userID,
+		ImageName:   imageName,
+		VideoName:   videoName,
+	}
+
+	if err := r.db.Create(&s).Error; err != nil {
+		return ds.HypertensionService{}, err
+	}
+	return s, nil
+}
+
+// APIPublishService — публикация черновика пользователя.
+func (r *HypertensionRepository) APIPublishService(
+	id int, userID uint,
+) (ds.HypertensionService, error) {
+
+	now := time.Now()
+
+	result := r.db.
+		Model(&ds.HypertensionService{}).
+		Where("id = ? AND user_id = ? AND status = ?",
+			id, userID, ds.HypertensionDraft).
+		Updates(map[string]interface{}{
+			"status":    ds.HypertensionPublished,
+			"formed_at": now,
+		})
+
+	if result.Error != nil {
+		return ds.HypertensionService{}, result.Error
+	}
+	if result.RowsAffected == 0 {
+		return ds.HypertensionService{}, fmt.Errorf("черновик не найден или не ваш")
+	}
+
+	var s ds.HypertensionService
+	r.db.First(&s, id)
+	return s, nil
+}
+
+// APISoftDeleteService — soft delete только своих.
+func (r *HypertensionRepository) APISoftDeleteService(
+	id int, userID uint,
+) error {
+
+	result := r.db.
+		Model(&ds.HypertensionService{}).
+		Where("id = ? AND user_id = ?", id, userID).
+		Update("status", ds.HypertensionDeleted)
+
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("услуга не найдена или не ваша")
+	}
+	return nil
+}
+
+// APIToggleLike — поставить/снять лайк.
+func (r *HypertensionRepository) APIToggleLike(
+	serviceID int, userID uint, value int,
+) (ds.HypertensionLike, error) {
+
+	var like ds.HypertensionLike
+	err := r.db.
+		Where("user_id = ? AND hypertension_service_id = ?", userID, serviceID).
+		First(&like).Error
+
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		like = ds.HypertensionLike{
+			UserID:                userID,
+			HypertensionServiceID: uint(serviceID),
+			Value:                 value,
+		}
+		return like, r.db.Create(&like).Error
+	}
+	if err != nil {
+		return ds.HypertensionLike{}, err
+	}
+
+	like.Value = value
+	return like, r.db.Save(&like).Error
+}
+
+// APIRegisterUser — регистрация.
+func (r *HypertensionRepository) APIRegisterUser(
+	username, password string,
+) (ds.User, error) {
+
+	user := ds.User{Username: username, Password: password}
+	if err := r.db.Create(&user).Error; err != nil {
+		return ds.User{}, err
+	}
+	return user, nil
 }

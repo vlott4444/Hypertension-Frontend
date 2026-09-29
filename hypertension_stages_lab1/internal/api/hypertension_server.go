@@ -11,26 +11,48 @@ import (
 	"gorm.io/gorm"
 )
 
-// StartHypertensionServer оставлен как отдельная точка сборки HTTP-слоя.
-// В cmd/server/main.go используется та же конфигурация маршрутов.
 func StartHypertensionServer(db *gorm.DB) {
 	log.Println("Starting hypertension stages server")
 
-	hypertensionRepository := repository.NewHypertensionRepository(db)
-	hypertensionHandler := handler.NewHypertensionHandler(hypertensionRepository)
+	repo := repository.NewHypertensionRepository(db)
+
+	// HTML-фронт из лаб 1-3
+	htmlHandler := handler.NewHypertensionHandler(repo)
+
+	// REST API из лабы 4
+	apiHandler := handler.NewAPIHandler(repo)
 
 	router := gin.Default()
 	router.LoadHTMLGlob("templates/*")
 	router.Static("/resources", "./resources")
 
-	router.GET("/feed/*serviceID", hypertensionHandler.ShowHypertensionFeed)
-	router.GET("/draft", hypertensionHandler.ShowHypertensionDraft)
-	router.GET("/stages", hypertensionHandler.ShowHypertensionGrid)
+	// ---------- HTML-роуты (не трогаем) ----------
+	router.GET("/feed/*serviceID", htmlHandler.ShowHypertensionFeed)
+	router.GET("/draft", htmlHandler.ShowHypertensionDraft)
+	router.GET("/stages", htmlHandler.ShowHypertensionGrid)
+	router.POST("/draft/publish", htmlHandler.PublishHypertensionDraft)
+	router.POST("/stages/:serviceID/delete", htmlHandler.DeleteHypertensionService)
 
-	router.POST("/draft/publish", hypertensionHandler.PublishHypertensionDraft)
-	router.POST("/stages/:serviceID/delete", hypertensionHandler.DeleteHypertensionService)
+	// ---------- REST API (лаба 4) ----------
+	api := router.Group("/api")
+	{
+		// Домен услуги
+		api.GET("/services", apiHandler.GetServices)
+		api.GET("/feed", apiHandler.GetFeed)
+		api.GET("/feed/:id", apiHandler.GetFeedByID)
+		api.GET("/draft", apiHandler.GetDraft)
+		api.POST("/services", apiHandler.CreateService)
+		api.PUT("/services/:id/publish", apiHandler.PublishService)
+		api.DELETE("/services/:id", apiHandler.DeleteService)
+		api.POST("/services/:id/like", apiHandler.LikeService)
+
+		// Домен пользователя
+		api.POST("/auth/register", apiHandler.Register)
+		api.POST("/auth/login", apiHandler.Login)
+		api.POST("/auth/logout", apiHandler.Logout)
+	}
 
 	if err := router.Run(":8080"); err != nil {
-		logrus.Fatal("сервер стадий гипертонии остановлен с ошибкой: ", err)
+		logrus.Fatal("сервер остановлен с ошибкой: ", err)
 	}
 }
