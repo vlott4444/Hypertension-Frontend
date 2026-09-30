@@ -94,7 +94,7 @@ func (r *HypertensionRepository) HypertensionDraftService() (ds.HypertensionServ
 		SystolicBP:  140,
 		DiastolicBP: 90,
 		Status:      ds.HypertensionDraft,
-		// URL намеренно пустые: в HTML предусмотрены локальные фото/видео по умолчанию.
+		// Имена файлов пустые — файлы будут загружены при POST /api/services.
 		ImageName: "",
 		VideoName: "",
 	}
@@ -368,6 +368,9 @@ func (r *HypertensionRepository) APIGetDraft(
 }
 
 // APICreateService — создание услуги.
+//
+// ВАЖНО: moderator_id обязателен по методичке, и на него есть FK
+// на таблицу users. На этапе лабы модератором ставим самого создателя.
 func (r *HypertensionRepository) APICreateService(
 	userID uint,
 	title, description string,
@@ -382,6 +385,7 @@ func (r *HypertensionRepository) APICreateService(
 		DiastolicBP: dbp,
 		Status:      ds.HypertensionDraft,
 		UserID:      userID,
+		ModeratorID: userID,
 		ImageName:   imageName,
 		VideoName:   videoName,
 	}
