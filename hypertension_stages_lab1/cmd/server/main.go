@@ -23,32 +23,26 @@ func main() {
 		panic("failed to connect database")
 	}
 
-	// Репозиторий
 	hypertensionRepository := repository.NewHypertensionRepository(db)
 
-	// HTML-хендлер (лабы 1-3)
 	hypertensionHandler := handler.NewHypertensionHandler(hypertensionRepository)
 
-	// API-хендлер (лаба 4)
 	apiHandler := handler.NewAPIHandler(hypertensionRepository)
 
 	router := gin.Default()
 
-	// HTML шаблоны
 	router.LoadHTMLGlob("./templates/*")
 	router.Static("/resources", "./resources")
 
-	// ---------- HTML-роуты (не трогаем) ----------
 	router.GET("/feed/*serviceID", hypertensionHandler.ShowHypertensionFeed)
 	router.GET("/draft", hypertensionHandler.ShowHypertensionDraft)
 	router.POST("/draft/publish", hypertensionHandler.PublishHypertensionDraft)
 	router.GET("/stages", hypertensionHandler.ShowHypertensionGrid)
 	router.POST("/stages/:serviceID/delete", hypertensionHandler.DeleteHypertensionService)
 
-	// ---------- REST API (лаба 4) ----------
 	api := router.Group("/api")
 	{
-		// Домен услуги
+
 		api.GET("/services", apiHandler.GetServices)
 		api.GET("/feed", apiHandler.GetFeed)
 		api.GET("/feed/:id", apiHandler.GetFeedByID)
@@ -58,7 +52,6 @@ func main() {
 		api.DELETE("/services/:id", apiHandler.DeleteService)
 		api.POST("/services/:id/like", apiHandler.LikeService)
 
-		// Домен пользователя
 		api.POST("/auth/register", apiHandler.Register)
 		api.POST("/auth/login", apiHandler.Login)
 		api.POST("/auth/logout", apiHandler.Logout)

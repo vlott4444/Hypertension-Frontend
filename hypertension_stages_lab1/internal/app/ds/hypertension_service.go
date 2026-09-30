@@ -18,19 +18,15 @@ type HypertensionService struct {
 	DiastolicBP int                `json:"diastolic_bp"`
 	Status      HypertensionStatus `json:"status"`
 
-	// Имена файлов (не URL!), сами файлы в Minio
 	ImageName string `json:"image_name"`
 	VideoName string `json:"video_name"`
 
-	// Создатель
 	UserID uint `json:"user_id"`
 	User   User `gorm:"foreignKey:UserID;references:ID" json:"-"`
 
-	// Модератор (по методичке обязателен)
 	ModeratorID uint  `json:"moderator_id"`
 	Moderator   *User `gorm:"foreignKey:ModeratorID;references:ID" json:"-"`
 
-	// Даты (по методичке обязательны)
 	CreatedAt   time.Time  `json:"created_at"`
 	FormedAt    *time.Time `json:"formed_at"`
 	CompletedAt *time.Time `json:"completed_at"`
