@@ -1,0 +1,1 @@
+export interface HypertensionStage { id:number; title:string; description:string; systolic_bp:number; diastolic_bp:number; status:"Published"|"Draft"|"Deleted"; image_name:string; video_name:string; }
