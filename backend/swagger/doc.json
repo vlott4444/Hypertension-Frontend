@@ -1,0 +1,29 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Hypertension Stages - Lab 4 route snapshot",
+    "version": "1.0.0",
+    "description": "Frontend fallback CONTRACT SNAPSHOT based on Lab 4 documented routes. This is not an exported copy of a running Go server. To synchronize, run npm run generate-api:server with that server running."
+  },
+  "servers": [{"url": "http://localhost:8080"}],
+  "paths": {
+    "/api/hypertension_stages": {
+      "get": {"operationId": "listHypertensionStages", "parameters": [
+        {"name":"min_sbp","in":"query","schema":{"type":"integer"}},
+        {"name":"max_sbp","in":"query","schema":{"type":"integer"}},
+        {"name":"title","in":"query","schema":{"type":"string"}}
+      ],"responses":{"200":{"description":"Published stages"}}},
+      "post": {"operationId":"createHypertensionStage","security":[{"BearerAuth":[]}],"requestBody":{"content":{"multipart/form-data":{"schema":{"type":"object","properties":{"title":{"type":"string"},"description":{"type":"string"},"systolic_bp":{"type":"integer"},"diastolic_bp":{"type":"integer"},"image":{"type":"string","format":"binary"},"video":{"type":"string","format":"binary"}}}}}},"responses":{"201":{"description":"Draft stage"}}}
+    },
+    "/api/feed": {"get":{"operationId":"getHypertensionFeed","responses":{"200":{"description":"First feed item"}}}},
+    "/api/feed/{id}": {"get":{"operationId":"getHypertensionFeedById","parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"integer"}},{"name":"next","in":"query","schema":{"type":"boolean"}}],"responses":{"200":{"description":"Feed item or next"}}}},
+    "/api/draft": {"get":{"operationId":"getHypertensionDraft","security":[{"BearerAuth":[]}],"responses":{"200":{"description":"Current draft"}}}},
+    "/api/hypertension_stages/{id}/publish": {"put":{"operationId":"publishHypertensionStage","security":[{"BearerAuth":[]}],"responses":{"200":{"description":"Published"}}}},
+    "/api/hypertension_stages/{id}": {"delete":{"operationId":"deleteHypertensionStage","security":[{"BearerAuth":[]}],"responses":{"200":{"description":"Deleted"}}}},
+    "/api/hypertension_stages/{id}/like": {"post":{"operationId":"likeHypertensionStage","security":[{"BearerAuth":[]}],"requestBody":{"content":{"application/json":{"schema":{"type":"object","required":["value"],"properties":{"value":{"type":"integer","enum":[0,1]}}}}}},"responses":{"200":{"description":"Like state updated"}}}},
+    "/api/auth/login": {"post":{"operationId":"login","responses":{"200":{"description":"JWT token"}}}},
+    "/api/auth/logout": {"post":{"operationId":"logout","security":[{"BearerAuth":[]}],"responses":{"200":{"description":"Token revoked"}}}},
+    "/api/auth/register": {"post":{"operationId":"register","responses":{"201":{"description":"Registered"}}}}
+  },
+  "components":{"securitySchemes":{"BearerAuth":{"type":"http","scheme":"bearer","bearerFormat":"JWT"}}}
+}
